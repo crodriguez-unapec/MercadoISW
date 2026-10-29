@@ -19,7 +19,7 @@ jobs:
         run: |
           if grep -R -n 'LAB_MODE: true' --include='docker-compose*.yml' .; then exit 1; fi
       - name: Trivy image scan (CRITICAL)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.33.1
         with:
           image-ref: 'mcr.microsoft.com/dotnet/aspnet:10.0'
           format: table
