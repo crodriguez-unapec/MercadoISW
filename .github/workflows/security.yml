@@ -19,11 +19,12 @@ jobs:
         run: |
           if grep -R -n 'LAB_MODE: true' --include='docker-compose*.yml' .; then exit 1; fi
       - name: Trivy image scan (CRITICAL)
-        uses: aquasecurity/trivy-action@v0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: 'mcr.microsoft.com/dotnet/aspnet:10.0'
-          format: table
+          image-ref: 'isw-store:ci'
+          format: 'table'
+          severity: 'CRITICAL'
           exit-code: '1'
-          severity: CRITICAL
+          version: 'v0.68.2'
 # TAREAS FASE 2: Semgrep SAST, Trivy SCA para imagen PROPIA y OWASP ZAP DAST.
 # No se reporta una ejecución en verde hasta conectar todas las herramientas.
