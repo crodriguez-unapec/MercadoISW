@@ -1,0 +1,29 @@
+name: Security CI
+on:
+  push:
+  pull_request:
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore and build
+        run: dotnet build --configuration Release
+      - name: Verify no laboratory mode in deployment configuration
+        run: |
+          if grep -R -n 'LAB_MODE: true' --include='docker-compose*.yml' .; then exit 1; fi
+      - name: Trivy image scan (CRITICAL)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: 'mcr.microsoft.com/dotnet/aspnet:10.0'
+          format: table
+          exit-code: '1'
+          severity: CRITICAL
+# TAREAS FASE 2: Semgrep SAST, Trivy SCA para imagen PROPIA y OWASP ZAP DAST.
+# No se reporta una ejecución en verde hasta conectar todas las herramientas.

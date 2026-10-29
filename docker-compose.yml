@@ -1,0 +1,20 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env}
+    volumes:
+      - sql_data:/var/opt/mssql
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      LAB_MODE: ${LAB_MODE:-false}
+      ConnectionStrings__Default: "Server=db,1433;Database=IswStore;User Id=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;Encrypt=True"
+    depends_on:
+      - db
+volumes:
+  sql_data:
