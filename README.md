@@ -91,7 +91,15 @@ Cambiar `LAB_MODE=true` en `.env` y reiniciar con `docker compose up -d --build 
 - **IDOR/BOLA:** no se comprueba pertenencia en `/api/cart/{userId}` ni rol en `/api/admin`.
 - **Autenticación débil:** sin limitación de intentos y revelación de cuentas existentes.
 
-**JWT débil / `alg: none` no está implementado.** La sesión usa cookies, así que este requisito del curso sigue pendiente; se necesita introducir JWT en una rama de laboratorio separada y después sustituirlo por JWT RS256 seguro en la defensa. No se debe declarar una PoC de JWT si no existe.
+**JWT débil / `alg: none` (implementado como laboratorio aparte):** la sesión normal de la app sigue usando cookies; el JWT inseguro vive en endpoints separados bajo `/api/lab/jwt-*` (ver `JwtLab.cs`), activos solo con `LAB_MODE=true`, para no mezclar el auth real con el vulnerable.
+
+- `POST /api/lab/jwt-login` con `{ "email": "...", "password": "..." }` devuelve un JWT HS256 firmado con un secreto débil hardcodeado (`isw2026`, ver `JwtLab.cs`).
+- `GET /api/lab/jwt-whoami` con header `Authorization: Bearer <token>` devuelve el id/rol/nombre que trae el token, sin volver a consultar la base de datos.
+- `GET /api/lab/jwt-admin` con el mismo header: si el rol del token es `Admin`, devuelve datos administrativos. El servidor confía en el campo `alg` que declara el propio token (no fuerza un algoritmo esperado), así que:
+  - **Ataque A (alg:none):** decodificar el token, poner `role` en `Admin` en el payload, cambiar el header a `{"alg":"none","typ":"JWT"}`, reconstruir como `header.payload.` (firma vacía) y llamar a `/api/lab/jwt-admin` — el servidor la acepta sin verificar ninguna firma.
+  - **Ataque B (secreto débil):** si se descubre el secreto `isw2026` (está en el código fuente), se puede firmar cualquier payload con HMACSHA256 y forjar un token admin válido aunque el bypass `alg:none` se corrija.
+
+Esta es la PoC exigida para Fase 1. La corrección definitiva en Fase 2 (RS256, allow-list de algoritmos, verificación contra la base de datos, expiración de 15 min y refresh token rotativo) debe reemplazar `JwtLab.cs`, no solo parchearlo.
 
 Mantener laboratorio expuesto solo a `127.0.0.1`. No realizar pruebas contra terceros. No usar datos reales.
 

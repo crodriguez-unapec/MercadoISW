@@ -152,6 +152,29 @@ app.MapGet("/api/admin",async(ClaimsPrincipal u,StoreDb db)=>{
  if(!lab && !Is(u,"Admin"))return Results.Forbid();
  return Results.Ok(new{users=await db.Users.CountAsync(),products=await db.Products.CountAsync(),orders=await db.Orders.CountAsync()});
 }).RequireAuthorization();
+// LAB ONLY: endpoints de la PoC "JWT None Algorithm / secreto débil" (requisito obligatorio Fase 1).
+// Implementación deliberadamente insegura (ver JwtLab.cs). Solo existen con LAB_MODE=true.
+if(lab) {
+ app.MapPost("/api/lab/jwt-login",async(LoginRequest req,StoreDb db)=>{
+  var email=(req.Email??"").Trim().ToLowerInvariant();
+  var user=await db.Users.SingleOrDefaultAsync(x=>x.Email==email);
+  if(user==null || !Verify(req.Password??"",user.PasswordHash))return Results.Json(new{message="Credenciales inválidas"},statusCode:401);
+  return Results.Ok(new{token=JwtLab.Create(user.Id,user.Role,user.Name)});
+ });
+ app.MapGet("/api/lab/jwt-whoami",(HttpContext ctx)=>{
+  var token=ctx.Request.Headers.Authorization.ToString().Replace("Bearer ","");
+  if(!JwtLab.TryParseInsecure(token,out var id,out var role,out var name))return Results.Json(new{message="Token inválido"},statusCode:401);
+  return Results.Ok(new{id,role,name});
+ });
+ // Endpoint objetivo de la elevación de privilegios: confía ciegamente en el rol que trae el JWT,
+ // sin volver a verificarlo contra la base de datos.
+ app.MapGet("/api/lab/jwt-admin",async(HttpContext ctx,StoreDb db)=>{
+  var token=ctx.Request.Headers.Authorization.ToString().Replace("Bearer ","");
+  if(!JwtLab.TryParseInsecure(token,out _,out var role,out _))return Results.Json(new{message="Token inválido"},statusCode:401);
+  if(role!="Admin")return Results.Forbid();
+  return Results.Ok(new{users=await db.Users.CountAsync(),products=await db.Products.CountAsync(),orders=await db.Orders.CountAsync(),note="Datos administrativos solo accesibles con rol Admin"});
+ });
+}
 app.MapFallbackToFile("index.html");
 app.Run();
 static object ProductDto(Product x)=>new {x.Id,x.Name,x.Description,x.Price,x.Stock,x.SellerId,imageUrl=x.ImageData is {Length:>0} ? $"/api/products/{x.Id}/image" : (string?)null};
